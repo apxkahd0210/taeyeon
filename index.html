@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>하노이 탑 탐구 프로그램</title>
+<style>
+:root{--site-primary:#315b75;--site-secondary:#dce9ef;--site-background:#f4f7f8;--site-on-primary:#ffffff;--site-on-secondary:#183547;--site-on-background:#1d2b34;--site-font-body:system-ui,-apple-system,"Malgun Gothic",sans-serif;--site-font-heading:system-ui,-apple-system,"Malgun Gothic",sans-serif;--site-heading-scale:1;--site-spacing-scale:1;--site-radius-scale:1;--site-decoration-opacity:1}
+*{box-sizing:border-box}body{margin:0;font-family:var(--site-font-body);background:light-dark(#f4f7f8,#121b20);color:light-dark(#1d2b34,#e8eff2)}
+#app{background-color:var(--site-background);color:var(--site-on-background);min-height:100vh;padding:calc(24px * var(--site-spacing-scale));}
+main{max-width:1100px;margin:auto}.hero{background:var(--site-primary);color:var(--site-on-primary);padding:28px;border-radius:calc(20px * var(--site-radius-scale));margin-bottom:18px}
+h1{font-size:calc(2rem * var(--site-heading-scale));margin:0 0 8px}h2{font-size:calc(1.15rem * var(--site-heading-scale));margin:0 0 14px}p{line-height:1.6}.muted{opacity:.78;font-size:.94rem}
+.panel{background:light-dark(#fff,#1c292f);color:light-dark(#1d2b34,#e8eff2);border:1px solid light-dark(#d8e2e7,#34464f);border-radius:calc(16px * var(--site-radius-scale));padding:20px;margin-bottom:16px}
+.controls{display:flex;flex-wrap:wrap;gap:12px;align-items:end}.field{display:flex;flex-direction:column;gap:6px;font-size:.92rem;font-weight:650}
+select,button{font:inherit;border-radius:10px;border:1px solid #9cb1bd;padding:10px 13px;background:light-dark(#fff,#172329);color:inherit}
+button{cursor:pointer;font-weight:650}button.primary{background:var(--site-primary);color:var(--site-on-primary);border-color:var(--site-primary)}button:disabled{opacity:.4;cursor:not-allowed}
+.pill{display:inline-block;background:var(--site-secondary);color:var(--site-on-secondary);padding:7px 11px;border-radius:999px;font-size:.9rem;font-weight:700}
+.layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(260px,1fr);gap:16px}
+canvas{display:block;width:100%;height:340px;background:light-dark(#f8fbfc,#111a1f);border:1px solid light-dark(#d8e2e7,#34464f);border-radius:12px}
+.status{min-height:28px;margin:10px 0 0;font-weight:650}.move-list{max-height:225px;overflow:auto;padding-left:24px}.move-list li{padding:4px 0}.formula{font-size:1.35rem;font-weight:800;color:light-dark(#315b75,#a9d8ed);padding:12px 0}
+table{width:100%;border-collapse:collapse}th,td{text-align:center;padding:9px;border-bottom:1px solid light-dark(#d8e2e7,#34464f)}th{background:var(--site-secondary);color:var(--site-on-secondary)}
+.note{font-size:.9rem;line-height:1.6}.btns{display:flex;flex-wrap:wrap;gap:8px}
+@media(max-width:760px){.layout{grid-template-columns:1fr}#app{padding:14px}.hero{padding:22px}canvas{height:300px}}
+</style>
+</head>
+<body>
+<div id="app" data-sites-preview-theme>
+<main>
+<section class="hero">
+<h1>하노이 탑 탐구 프로그램</h1>
+<p>원판을 직접 옮기며 규칙을 확인하고, 최소 이동 횟수의 점화식과 일반식을 탐구해 보세요.</p>
+<span class="pill">Tₙ = 2Tₙ₋₁ + 1</span> <span class="pill">Tₙ = 2ⁿ − 1 (기둥 3개)</span>
+</section>
+<section class="panel">
+<div class="controls">
+<label class="field">원판 개수
+<select id="disks"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select>
+</label>
+<label class="field">기둥 개수
+<select id="pegs"><option value="3" selected>3개</option><option value="4">4개</option><option value="5">5개</option><option value="6">6개</option></select>
+</label>
+<button class="primary" id="reset">초기화</button>
+<button class="primary" id="solve">자동 풀이</button>
+</div>
+<p class="muted">기본 규칙: 한 번에 원판 하나만 이동 · 큰 원판을 작은 원판 위에 놓을 수 없음 · 모든 원판을 A에서 마지막 기둥으로 이동</p>
+</section>
+<div class="layout">
+<section class="panel">
+<h2>원판 이동 보드</h2>
+<canvas id="board" width="760" height="340" aria-label="하노이 탑 원판 이동 보드"></canvas>
+<div class="btns" style="margin-top:12px">
+<label class="field">출발 기둥 <select id="from"><option value="0">A</option><option value="1">B</option><option value="2">C</option><option value="3">D</option><option value="4">E</option><option value="5">F</option></select></label>
+<label class="field">도착 기둥 <select id="to"><option value="0">A</option><option value="1">B</option><option value="2" selected>C</option><option value="3">D</option><option value="4">E</option><option value="5">F</option></select></label>
+<button id="move" class="primary">한 번 이동</button>
+<button id="undo">한 단계 되돌리기</button>
+</div>
+<p class="status" id="status" role="status">원판을 선택한 기둥에서 다른 기둥으로 옮겨 보세요.</p>
+</section>
+<section class="panel">
+<h2>탐구 결과</h2>
+<div class="muted">현재 직접 이동 횟수</div><div class="formula" id="moves">0회</div>
+<div class="muted">3개 기둥 기준 최소 이동 횟수</div><div class="formula" id="minimum">7회</div>
+<div class="muted">점화식</div><p><b>Tₙ = 2Tₙ₋₁ + 1</b> (T₁ = 1)</p>
+<div class="muted">일반식</div><p><b>Tₙ = 2ⁿ − 1</b></p>
+<p class="note" id="extra">원판이 하나 늘어날 때마다 최소 이동 횟수는 이전 값의 2배에 1을 더한 값이 됩니다.</p>
+</section>
+</div>
+<section class="panel">
+<h2>이동 기록</h2>
+<ol id="history" class="move-list"><li>아직 이동하지 않았습니다.</li></ol>
+</section>
+<section class="panel">
+<h2>원판 수에 따른 최소 이동 횟수 (기둥 3개)</h2>
+<table><thead><tr><th>원판 수 n</th><th>계산식</th><th>최소 이동 횟수</th></tr></thead><tbody id="table"></tbody></table>
+<p class="note">참고: 기둥이 4개 이상일 때 자동 풀이는 원판을 나누어 옮기는 재귀적 방법을 사용합니다. 보고서의 후속 탐구에서 다룬 것처럼, 이 방법의 결과가 항상 최소라는 점은 이 프로그램에서 증명하지 않습니다. 표의 일반식은 기둥 3개일 때에만 적용됩니다.</p>
+</section>
+</main>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+let n=3, pegCount=3, pegs=[], moves=0, history=[], undoStack=[], solution=[], solutionIndex=0, timer=null;
+const names=['A','B','C','D','E','F'];
+function init(){clearInterval(timer);timer=null;n=+$('disks').value;pegCount=+$('pegs').value;pegs=Array.from({length:pegCount},()=>[]);for(let d=n;d>=1;d--)pegs[0].push(d);moves=0;history=[];undoStack=[];solution=[];solutionIndex=0;
+['from','to'].forEach(id=>{const s=$(id);[...s.options].forEach(o=>o.hidden=+o.value>=pegCount);if(+s.value>=pegCount)s.value=id==='from'?'0':String(pegCount-1)});$('status').textContent='원판을 선택한 기둥에서 다른 기둥으로 옮겨 보세요.';render();}
+function legalMove(a,b,record=true){if(a===b){msg('서로 다른 기둥을 선택하세요.');return false}if(!pegs[a].length){msg('출발 기둥에 옮길 원판이 없습니다.');return false}const disk=pegs[a][pegs[a].length-1];if(pegs[b].length&&pegs[b][pegs[b].length-1]<disk){msg('큰 원판을 작은 원판 위에 놓을 수 없습니다.');return false}
+if(record)undoStack.push({pegs:pegs.map(p=>p.slice()),moves,history:history.slice()});pegs[a].pop();pegs[b].push(disk);moves++;history.push(`${moves}. ${names[a]} → ${names[b]} (원판 ${disk})`);msg(`원판 ${disk}을(를) ${names[a]}에서 ${names[b]}로 옮겼습니다.`);render();return true}
+function msg(s){$('status').textContent=s}
+function render(){const c=$('board'),ctx=c.getContext('2d'),W=c.width,H=c.height;ctx.clearRect(0,0,W,H);ctx.fillStyle=getComputedStyle(document.querySelector('.panel')).backgroundColor;ctx.fillRect(0,0,W,H);const gap=W/pegCount,base=H-44,maxW=Math.min(gap*.82,130),diskH=Math.min(25,Math.max(15,190/n));ctx.strokeStyle='#8aa0ac';ctx.lineWidth=7;for(let i=0;i<pegCount;i++){const x=gap*(i+.5);ctx.beginPath();ctx.moveTo(x,42);ctx.lineTo(x,base);ctx.stroke();ctx.fillStyle='#506b7b';ctx.font='bold 17px sans-serif';ctx.textAlign='center';ctx.fillText(names[i],x,H-15);for(let j=0;j<pegs[i].length;j++){const d=pegs[i][j],w=maxW*(.32+.68*d/n),y=base-(j+1)*diskH;ctx.fillStyle=`hsl(${195+d*17}, 55%, ${Math.max(38,65-d*2)}%)`;ctx.strokeStyle='#315b75';ctx.lineWidth=1.5;ctx.beginPath();ctx.roundRect(x-w/2,y,w,diskH-2,6);ctx.fill();ctx.stroke();ctx.fillStyle='#fff';ctx.font='bold 12px sans-serif';ctx.fillText(String(d),x,y+diskH/2-1)}}$('moves').textContent=moves+'회';$('minimum').textContent=(2**n-1).toLocaleString()+'회';$('history').innerHTML=history.length?history.slice(-100).map(x=>`<li>${x}</li>`).join(''):'<li>아직 이동하지 않았습니다.</li>';const t=$('table');t.innerHTML='';for(let k=1;k<=8;k++){const tr=document.createElement('tr');tr.innerHTML=`<td>${k}</td><td>2<sup>${k}</sup> − 1</td><td>${(2**k-1).toLocaleString()}</td>`;t.appendChild(tr)}$('extra').textContent=`원판 ${n}개일 때 기둥 3개 기준 최소 이동 횟수는 2^${n} − 1 = ${(2**n-1).toLocaleString()}회입니다. 현재 보드의 직접 이동 횟수와 비교해 보세요.`}
+function solve3(k,a,b,spare,out){if(!k)return;if(k===1){out.push([a,b]);return}solve3(k-1,a,spare,b,out);out.push([a,b]);solve3(k-1,spare,b,a,out)}
+function solveK(k,src,dst,available,out){if(!k)return;if(k===1){out.push([src,dst]);return}if(available.length===3){const spare=available.find(x=>x!==src&&x!==dst);solve3(k,src,dst,spare,out);return}
+let split=k-1;let best=Infinity;for(let t=1;t<k;t++){const cost=2*moveCount(t,available.length)+moveCount(k-t,available.length-1);if(cost<best){best=cost;split=t}}
+const spare=available.find(x=>x!==src&&x!==dst);solveK(split,src,spare,available,out);solveK(k-split,src,dst,available.filter(x=>x!==spare),out);solveK(split,spare,dst,available,out)}
+function moveCount(k,p){if(k<=0)return 0;if(p===3)return 2**k-1;let best=Infinity;for(let t=1;t<k;t++)best=Math.min(best,2*moveCount(t,p)+moveCount(k-t,p-1));return best===Infinity?2**k-1:best}
+function autoplay(){clearInterval(timer);init();const target=pegCount-1;solution=[];if(pegCount===3)solve3(n,0,target,1,solution);else solveK(n,0,target,Array.from({length:pegCount},(_,i)=>i),solution);solutionIndex=0;msg(`자동 풀이 진행 중: 총 ${solution.length}회 이동 예정입니다.`);timer=setInterval(()=>{if(solutionIndex>=solution.length){clearInterval(timer);timer=null;msg(`완료! ${moves}회 이동했습니다. 기둥 ${pegCount}개 방식의 결과이며, 항상 최소임을 증명한 것은 아닙니다.`);return}const [a,b]=solution[solutionIndex++];legalMove(a,b,false)},Math.max(100,700-n*55))}
+$('disks').addEventListener('change',init);$('pegs').addEventListener('change',init);$('reset').addEventListener('click',init);$('move').addEventListener('click',()=>legalMove(+$('from').value,+$('to').value));$('undo').addEventListener('click',()=>{clearInterval(timer);timer=null;const prev=undoStack.pop();if(!prev){msg('되돌릴 이동이 없습니다.');return}pegs=prev.pegs;moves=prev.moves;history=prev.history;msg('한 단계 이전 상태로 되돌렸습니다.');render()});$('solve').addEventListener('click',autoplay);init();
+</script>
+</body></html>
